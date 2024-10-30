@@ -1,0 +1,250 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+// model Staff {
+//   id        Int   @id @default(autoincrement())
+//   name      String
+//   idcard    String
+//   phone     String
+//   password  String
+//   role      String
+//   Supplies  Supply[]
+//   Order     Order[]
+// }
+
+model OrderItem {
+  id       Int   @id @default(autoincrement())
+  product  Product  @relation(fields: [productId], references: [id])
+  productId Int
+  quantity Int
+  price    Float
+  order    Order    @relation(fields: [orderId], references: [id])
+  orderId  Int
+}
+
+model SupplyItem {
+  id           Int   @id @default(autoincrement())
+  ingredientItem   IngredientItem @relation(fields: [ingredientItemId], references: [id])
+  ingredientItemId Int
+  supply       Supply    @relation(fields: [supplyId], references: [id])
+  supplyId     Int
+  quantity     Int
+  price   Float
+}
+
+model Recipe {
+  id           Int    @id @default(autoincrement())
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId    Int
+  ingredientItem   IngredientItem @relation(fields: [ingredientItemId], references: [id], onDelete: Cascade)
+  ingredientItemId Int
+  quantity     Int
+}
+
+model Supply {
+  id         Int   @id @default(autoincrement())
+  staff      User    @relation(fields: [staffId], references: [id])
+  staffId    Int
+  supplyDate DateTime @default(now())
+  totalPrice Float
+  SupplyItem SupplyItem[]
+  isDeliveredToInventory Boolean @default(false)
+}
+
+model Product {
+  id         Int      @id @default(autoincrement())
+  name       String
+  price      Float
+  mainImage  String?
+  OrderItem  OrderItem[]
+  Recipe     Recipe[]
+  ShoppingCartItem ShoppingCartItem[]
+  isDeleted Boolean? @default(false)
+}
+
+model ShoppingCart {
+  id        Int              @id @default(autoincrement())
+  user      User                @relation(fields: [userId], references: [id])
+  userId    Int
+  total_price Float
+  items     ShoppingCartItem[]
+}
+
+model Inventory {
+  id           Int   @id @default(autoincrement())
+  area String
+  ingredients  IngredientInventory[]
+  inventoryTransactions InventoryTransaction[]
+}
+
+model IngredientInventory {
+  id           Int              @id @default(autoincrement())
+  ingredientItem IngredientItem @relation(fields: [ingredientItemId], references: [id])
+  ingredientItemId Int
+
+  inventory Inventory @relation(fields: [inventoryId], references: [id])
+  inventoryId Int
+
+  quantity Int
+}
+
+// model IngredientInventory {
+//   id           Int              @id @default(autoincrement())
+//   name         String
+//   unit         String
+//   price        Float
+//   toppingPrice Float
+//   inventory    Inventory @relation(fields: [inventoryId], references: [id])
+//   inventoryId  Int
+//   Recipes      Recipe[]
+//   Transactions InventoryTransaction[]
+//   Toppings     Topping[]
+// }
+
+model IngredientSummary {
+  id           Int              @id @default(autoincrement())
+  ingredientItem IngredientItem @relation(fields: [ingredientItemId], references: [id])
+  ingredientItemId Int
+  quantity Int
+  summaryDate DateTime @default(now())
+}
+
+model IngredientItem {
+  id           Int              @id @default(autoincrement())
+  name         String
+  price        Float
+  unit         String @default("GAM") 
+  SupplyItems  SupplyItem[]
+  ingredientInventories IngredientInventory[]
+  recipes Recipe[]
+  isDry Boolean @default(true)
+
+  IngredientSummary IngredientSummary[]
+  inventoryTransactions InventoryTransaction[]
+  isDeleted Boolean? @default(false)
+  
+
+}
+
+model Order {
+  id             Int   @id @default(autoincrement())
+  shippingAddress String
+  user           User     @relation(name: "UserOrder", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  userId         Int
+  totalPrice     Float
+  orderDate      DateTime @default(now())
+  orderType      String
+  staff          User?   @relation(name: "StaffOrder",fields: [staffId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  staffId        Int?
+  OrderItems     OrderItem[]
+  orderStatus    String
+  additional String?
+  // Toppings       Topping[]
+}
+
+model InventoryTransaction {
+  id           Int      @id @default(autoincrement())
+  inventory Inventory @relation(fields: [inventoryId], references: [id])
+  inventoryId Int
+  ingredientItem IngredientItem? @relation(fields: [ingredientItemId], references: [id])
+  ingredientItemId Int?
+  staff User @relation(fields: [staffId], references: [id])
+  staffId Int
+  stockType    String
+  quantity     Int
+  transactionDate DateTime @default(now())
+}
+
+// model Topping {
+//   id           Int      @id @default(autoincrement())
+//   ingredient   IngredientInventory  @relation(fields: [ingredientId], references: [id])
+//   ingredientId Int
+//   quantity     Int
+//   price        Float
+//   order        Order       @relation(fields: [orderId], references: [id])
+//   orderId      Int
+// }
+
+model ShoppingCartItem {
+  id           Int      @id @default(autoincrement())
+  shoppingCart ShoppingCart @relation(fields: [shoppingCartId], references: [id], onDelete: Cascade)
+  shoppingCartId Int
+  product      Product     @relation(fields: [productId], references: [id])
+  productId    Int
+  price Float
+  quantity Int
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String
+  idcard    String
+  phone     String
+  password  String
+  Orders    Order[] @relation(name: "UserOrder")
+  StaffOrders Order[] @relation(name: "StaffOrder")
+  ShippingAddresses ShippingAddress[]
+  ShoppingCarts ShoppingCart[]
+  Supplies  Supply[]
+  inventoryTransactions InventoryTransaction[]
+  userRoles UserRole[]
+
+  isActive Boolean @default(true)
+}
+
+model Role {
+  name String @id
+
+  userRoles UserRole[]
+  grantPermissions GrantPermission[]
+}
+
+model Endpoint {
+  id Int  @id @default(autoincrement())
+  url String
+
+  grantPermissions GrantPermission[]
+}
+
+model UserRole {
+  user User @relation(fields: [userId], references: [id])
+  userId Int 
+
+  role Role @relation(fields: [roleName], references: [name])
+  roleName String 
+
+  @@id([userId, roleName])
+}
+
+model GrantPermission {
+  role Role @relation(fields: [roleName], references: [name])
+  roleName String 
+
+  endpoint Endpoint @relation(fields: [endpointId], references: [id])
+  endpointId Int
+
+  isPrivileged Boolean
+
+  @@id([roleName, endpointId])
+}
+
+model ShippingAddress {
+  id         Int   @id @default(autoincrement())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  street     String
+  district   String
+  city       String
+}
